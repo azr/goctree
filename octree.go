@@ -1,7 +1,7 @@
 package goctree
 
 type Data interface {
-	Position() Vector3D
+	GetPosition() Vector3D
 }
 
 type Node struct {
@@ -114,12 +114,12 @@ func (o *Node) Insert(point Data) {
 			// Re-insert the old point, and insert this new point
 			// (We wouldn't need to insert from the root, because we already
 			// know it's guaranteed to be in this section of the tree)
-			o.children[o.GetOctantContainingPoint(oldPoint.Position())].Insert(oldPoint)
-			o.children[o.GetOctantContainingPoint(point.Position())].Insert(point)
+			o.children[o.GetOctantContainingPoint(oldPoint.GetPosition())].Insert(oldPoint)
+			o.children[o.GetOctantContainingPoint(point.GetPosition())].Insert(point)
 		}
 	} else {
 		// We are at an interior node. Insert recursively into the
 		// appropriate child octant
-		o.children[o.GetOctantContainingPoint(point.Position())].Insert(point)
+		o.children[o.GetOctantContainingPoint(point.GetPosition())].Insert(point)
 	}
 }

@@ -19,7 +19,7 @@ func (o *Node) getPointsInsideBox(bmin, bmax Vector3D, fn func(Data) WalkChoice)
 	// the query bounding box
 	if o.IsLeafNode() {
 		if o.data != nil {
-			p := o.data.Position()
+			p := o.data.GetPosition()
 			if p[x] > bmax[x] || p[y] > bmax[y] || p[z] > bmax[z] {
 				return ContinueWalking
 			}

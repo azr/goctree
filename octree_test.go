@@ -59,6 +59,6 @@ type TestPoint struct {
 	name string
 }
 
-func (t *TestPoint) Position() octree.Vector3D {
+func (t *TestPoint) GetPosition() octree.Vector3D {
 	return t.p
 }
