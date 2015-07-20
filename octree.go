@@ -1,10 +1,10 @@
 package goctree
 
-type OctreeData interface {
+type Data interface {
 	Position() Vector3D
 }
 
-type Octree struct {
+type Node struct {
 	// Physical position/size. This implicitly defines the bounding
 	// box of this node
 	origin        Vector3D // The physical center of this node
@@ -18,18 +18,18 @@ type Octree struct {
 		y:      - - + + - - + +
 		z:      - + - + - + - +
 	*/
-	children [8]*Octree
-	data     OctreeData
+	children [8]*Node
+	data     Data
 }
 
-func NewOctree(origin Vector3D, halfDimension Vector3D) *Octree {
-	return &Octree{
+func New(origin Vector3D, halfDimension Vector3D) *Node {
+	return &Node{
 		origin:        origin,
 		halfDimension: halfDimension,
 	}
 }
 
-func (o *Octree) GetOctantContainingPoint(point Vector3D) (oct int) {
+func (o *Node) GetOctantContainingPoint(point Vector3D) (oct int) {
 	if point[x] >= o.origin[x] {
 		oct |= 4
 	}
@@ -42,7 +42,7 @@ func (o *Octree) GetOctantContainingPoint(point Vector3D) (oct int) {
 	return
 }
 
-func (o *Octree) IsLeafNode() bool {
+func (o *Node) IsLeafNode() bool {
 	// This is correct, but overkill. See below.
 	// for i := 0; i < 8; i++ {
 	// 	if children[i] != nil {
@@ -63,7 +63,7 @@ func side(b bool) float64 {
 	return -0.5
 }
 
-func (o *Octree) Insert(point OctreeData) {
+func (o *Node) Insert(point Data) {
 
 	// If this node doesn't have a data point yet assigned
 	// and it is a leaf, then we're done!
@@ -89,7 +89,7 @@ func (o *Octree) Insert(point OctreeData) {
 				newOrigin[x] += o.halfDimension[x] * side(i&4 != 0)
 				newOrigin[y] += o.halfDimension[y] * side(i&2 != 0)
 				newOrigin[z] += o.halfDimension[z] * side(i&1 != 0)
-				o.children[i] = NewOctree(newOrigin, o.halfDimension.Imul(0.5))
+				o.children[i] = New(newOrigin, o.halfDimension.Imul(0.5))
 			}
 
 			// Re-insert the old point, and insert this new point

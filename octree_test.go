@@ -7,7 +7,7 @@ import (
 )
 
 func TestInsertGet(t *testing.T) {
-	ot := octree.NewOctree(octree.Vector3D{0, 0, 0}, octree.Vector3D{3, 2, 2})
+	ot := octree.New(octree.Vector3D{0, 0, 0}, octree.Vector3D{3, 2, 2})
 
 	backleftbottom := &TestPoint{
 		p:    octree.Vector3D{-3, -2, -2},
@@ -23,7 +23,7 @@ func TestInsertGet(t *testing.T) {
 
 	{
 		times := 0
-		ot.GetPointsInsideBox(octree.Vector3D{-3, -2, -2}, octree.Vector3D{0, 0, 0}, func(d octree.OctreeData) octree.WalkChoice {
+		ot.GetPointsInsideBox(octree.Vector3D{-3, -2, -2}, octree.Vector3D{0, 0, 0}, func(d octree.Data) octree.WalkChoice {
 			times++
 			if d != backleftbottom {
 				t.Error("Item is different")
@@ -37,7 +37,7 @@ func TestInsertGet(t *testing.T) {
 
 	{
 		times := 0
-		ot.GetPointsInsideBox(octree.Vector3D{0, 0, 0}, octree.Vector3D{3, 2, 2}, func(d octree.OctreeData) octree.WalkChoice {
+		ot.GetPointsInsideBox(octree.Vector3D{0, 0, 0}, octree.Vector3D{3, 2, 2}, func(d octree.Data) octree.WalkChoice {
 			times++
 			if d != frontrighttop {
 				t.Error("Item is different")

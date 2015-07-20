@@ -10,11 +10,11 @@ const (
 // GetPointsInsideBox is a really simple routine for querying the tree for points
 // within a bounding box defined by min/max points (bmin, bmax)
 // All results are pushed into 'results'
-func (o *Octree) GetPointsInsideBox(bmin, bmax Vector3D, fn func(OctreeData) WalkChoice) {
+func (o *Node) GetPointsInsideBox(bmin, bmax Vector3D, fn func(Data) WalkChoice) {
 	o.getPointsInsideBox(bmin, bmax, fn)
 }
 
-func (o *Octree) getPointsInsideBox(bmin, bmax Vector3D, fn func(OctreeData) WalkChoice) WalkChoice {
+func (o *Node) getPointsInsideBox(bmin, bmax Vector3D, fn func(Data) WalkChoice) WalkChoice {
 	// If we're at a leaf node, just see if the current data point is inside
 	// the query bounding box
 	if o.IsLeafNode() {
