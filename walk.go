@@ -3,8 +3,8 @@ package goctree
 type WalkChoice bool
 
 const (
-	ContinueWalking = WalkChoice(true)
-	StopWalking     = WalkChoice(false)
+	ContinueWalking = WalkChoice(false)
+	StopWalking     = WalkChoice(true)
 )
 
 // GetPointsInsideBox is a really simple routine for querying the tree for points
