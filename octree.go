@@ -20,9 +20,17 @@ type Node struct {
 	*/
 	children [8]*Node
 	data     Data
+	root     bool
+	size     int
 }
 
 func New(origin Vector3D, halfDimension Vector3D) *Node {
+	o := new(origin, halfDimension)
+	o.root = true
+	return o
+}
+
+func new(origin Vector3D, halfDimension Vector3D) *Node {
 	return &Node{
 		origin:        origin,
 		halfDimension: halfDimension,
@@ -40,6 +48,10 @@ func (o *Node) GetOctantContainingPoint(point Vector3D) (oct int) {
 		oct |= 1
 	}
 	return
+}
+
+func (o *Node) IsRootNode() bool {
+	return o.root
 }
 
 func (o *Node) IsLeafNode() bool {
@@ -63,7 +75,14 @@ func side(b bool) float64 {
 	return -0.5
 }
 
+func (o *Node) Size() int {
+	return o.size
+}
+
 func (o *Node) Insert(point Data) {
+	if o.IsRootNode() {
+		o.size++
+	}
 
 	// If this node doesn't have a data point yet assigned
 	// and it is a leaf, then we're done!
@@ -89,7 +108,7 @@ func (o *Node) Insert(point Data) {
 				newOrigin[x] += o.halfDimension[x] * side(i&4 != 0)
 				newOrigin[y] += o.halfDimension[y] * side(i&2 != 0)
 				newOrigin[z] += o.halfDimension[z] * side(i&1 != 0)
-				o.children[i] = New(newOrigin, o.halfDimension.Imul(0.5))
+				o.children[i] = new(newOrigin, o.halfDimension.Imul(0.5))
 			}
 
 			// Re-insert the old point, and insert this new point

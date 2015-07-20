@@ -6,7 +6,7 @@ import (
 	octree "github.com/azr/goctree"
 )
 
-func TestInsertGet(t *testing.T) {
+func TestInsertGetAndSize(t *testing.T) {
 	ot := octree.New(octree.Vector3D{0, 0, 0}, octree.Vector3D{3, 2, 2})
 
 	backleftbottom := &TestPoint{
@@ -47,6 +47,10 @@ func TestInsertGet(t *testing.T) {
 		if times != 1 {
 			t.Errorf("Incorrect number of found items: %d", times)
 		}
+	}
+
+	if ot.Size() != 2 {
+		t.Errorf("Size != 2 : %d", ot.Size())
 	}
 }
 
