@@ -137,3 +137,77 @@ func (o *node) contains(point Data) bool {
 		p[z] > o.origin[z]+o.halfDimension[z] ||
 		p[z] < o.origin[z]-o.halfDimension[z])
 }
+
+type insertPair struct {
+	node   *node
+	points []Data
+}
+
+func (o *Root) InsertBreadthFirst(points ...Data) {
+	o.size++
+
+	pairs := []insertPair{
+		{
+			points: points,
+			node:   o.tree,
+		},
+	}
+
+	for len(pairs) > 0 {
+		pair := pairs[len(pairs)-1]
+		pairs = pairs[:len(pairs)-1]
+
+		node := pair.node
+		for len(pair.points) > 0 {
+			point := pair.points[len(pair.points)-1]
+			pair.points = pair.points[:len(pair.points)-1]
+
+			if node.IsLeafNode() {
+				if node.data == nil {
+					node.data = point
+					continue
+				} else {
+					// We're at a leaf, but there's already something here
+					// We will split this node so that it has 8 child octants
+					// and then insert the old data that was here, along with
+					// this new data point
+
+					// Save this data point that was here for a later re-insert
+					oldData := node.data
+					node.data = nil
+
+					// Split the current node and create new empty trees for each
+					// child octant.
+					for i := 0; i < 8; i++ {
+						// Compute new bounding box for this child
+						newOrigin := node.origin
+						newOrigin[x] += node.halfDimension[x] * side(i&4 != 0)
+						newOrigin[y] += node.halfDimension[y] * side(i&2 != 0)
+						newOrigin[z] += node.halfDimension[z] * side(i&1 != 0)
+						node.children[i] = new(newOrigin, node.halfDimension.Imul(0.5))
+					}
+
+					// Re-insert the old point, and insert this new point
+					// (We wouldn't need to insert from the root, because we already
+					// know it's guaranteed to be in this section of the tree)
+					pairs = append(pairs,
+						insertPair{
+							node:   node.children[node.GetOctantContainingPoint(oldData.GetPosition())],
+							points: []Data{oldData},
+						})
+					pairs = append(pairs,
+						insertPair{
+							node:   node.children[node.GetOctantContainingPoint(point.GetPosition())],
+							points: []Data{point},
+						})
+				}
+			} else {
+				pairs = append(pairs,
+					insertPair{
+						node:   node.children[node.GetOctantContainingPoint(point.GetPosition())],
+						points: []Data{point},
+					})
+			}
+		}
+	}
+}
