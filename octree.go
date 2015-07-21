@@ -4,9 +4,17 @@ type Data interface {
 	GetPosition() Vector3D
 }
 
-type Root struct {
-	tree *node
-	size int
+type Tree interface {
+	Insert(...Data)
+	Walk(bmin, bmax Vector3D, fn func(Data) WalkChoice) (seen int, choice WalkChoice)
+	Size() int
+}
+
+type root struct {
+	tree     *node
+	size     int
+	insertFn func(...Data)
+	walkFn   func(bmin, bmax Vector3D, fn func(Data) WalkChoice) (seen int, choice WalkChoice)
 }
 
 type node struct {
@@ -27,11 +35,28 @@ type node struct {
 	data     Data
 }
 
-func New(origin Vector3D, halfDimension Vector3D) *Root {
-	r := &Root{
+func NewRecursive(origin Vector3D, halfDimension Vector3D) Tree {
+	r := &root{
 		tree: new(origin, halfDimension),
 	}
+	r.insertFn = r.InsertRecursive
+	r.walkFn = r.GetPointsInsideBoxRecursive
 	return r
+}
+func NewIterative(origin Vector3D, halfDimension Vector3D) Tree {
+	r := &root{
+		tree: new(origin, halfDimension),
+	}
+	r.insertFn = r.InsertIterative
+	r.walkFn = r.GetPointsInsideBoxIterative
+	return r
+}
+
+func (r *root) Insert(pts ...Data) {
+	r.insertFn(pts...)
+}
+func (r *root) Walk(bmin, bmax Vector3D, fn func(Data) WalkChoice) (seen int, choice WalkChoice) {
+	return r.walkFn(bmin, bmax, fn)
 }
 
 func new(origin Vector3D, halfDimension Vector3D) *node {
@@ -67,22 +92,18 @@ func side(b bool) float64 {
 	return -0.5
 }
 
-func (o *Root) Size() int {
+func (o *root) Size() int {
 	return o.size
 }
 
-func (o *Root) Insert(points ...Data) {
-	for _, p := range points {
-		o.InsertRecursive(p)
+func (o *root) InsertRecursive(points ...Data) {
+	for _, point := range points {
+		o.size++
+		if !o.tree.contains(point) {
+			panic("Point out of tree: " + point.GetPosition().String() + " " + o.tree.origin.String() + " " + o.tree.halfDimension.String())
+		}
+		o.tree.InsertRecursive(point)
 	}
-}
-
-func (o *Root) InsertRecursive(point Data) {
-	o.size++
-	if !o.tree.contains(point) {
-		panic("Point out of tree: " + point.GetPosition().String() + " " + o.tree.origin.String() + " " + o.tree.halfDimension.String())
-	}
-	o.tree.InsertRecursive(point)
 }
 
 func (o *node) InsertRecursive(point Data) {
@@ -143,7 +164,7 @@ type insertPair struct {
 	points []Data
 }
 
-func (o *Root) InsertBreadthFirst(points ...Data) {
+func (o *root) InsertIterative(points ...Data) {
 	o.size++
 
 	pairs := []insertPair{

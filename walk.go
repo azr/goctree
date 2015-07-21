@@ -8,11 +8,11 @@ const (
 )
 
 //GetPointsInsideBox lists breadth first points
-func (o *Root) GetPointsInsideBox(bmin, bmax Vector3D, fn func(Data) WalkChoice) (seen int, choice WalkChoice) {
-	return o.GetPointsInsideBoxRecursive(bmin, bmax, fn)
+func (o *root) GetPointsInsideBoxIterative(bmin, bmax Vector3D, fn func(Data) WalkChoice) (seen int, choice WalkChoice) {
+	return o.tree.getPointsInsideBoxIterative(bmin, bmax, fn)
 }
 
-func (o *node) getPointsInsideBoxBreadFirst(bmin, bmax Vector3D, fn func(Data) WalkChoice) (seen int, choice WalkChoice) {
+func (o *node) getPointsInsideBoxIterative(bmin, bmax Vector3D, fn func(Data) WalkChoice) (seen int, choice WalkChoice) {
 	nodes := make([]*node, 1, 50)
 	nodes[0] = o
 
@@ -63,7 +63,7 @@ func (o *node) getPointsInsideBoxBreadFirst(bmin, bmax Vector3D, fn func(Data) W
 // within a bounding box defined by min/max points (bmin, bmax)
 // sent to fn
 // Beware, recursivity means stack overflow and depth first !
-func (o *Root) GetPointsInsideBoxRecursive(bmin, bmax Vector3D, fn func(Data) WalkChoice) (int, WalkChoice) {
+func (o *root) GetPointsInsideBoxRecursive(bmin, bmax Vector3D, fn func(Data) WalkChoice) (int, WalkChoice) {
 	return o.tree.getPointsInsideBoxRecursive(bmin, bmax, fn)
 }
 
