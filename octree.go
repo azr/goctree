@@ -4,7 +4,12 @@ type Data interface {
 	GetPosition() Vector3D
 }
 
-type Node struct {
+type Root struct {
+	tree *node
+	size int
+}
+
+type node struct {
 	// Physical position/size. This implicitly defines the bounding
 	// box of this node
 	origin        Vector3D // The physical center of this node
@@ -18,26 +23,25 @@ type Node struct {
 		y:      - - + + - - + +
 		z:      - + - + - + - +
 	*/
-	children [8]*Node
+	children [8]*node
 	data     Data
-	root     bool
-	size     int
 }
 
-func New(origin Vector3D, halfDimension Vector3D) *Node {
-	o := new(origin, halfDimension)
-	o.root = true
-	return o
+func New(origin Vector3D, halfDimension Vector3D) *Root {
+	r := &Root{
+		tree: new(origin, halfDimension),
+	}
+	return r
 }
 
-func new(origin Vector3D, halfDimension Vector3D) *Node {
-	return &Node{
+func new(origin Vector3D, halfDimension Vector3D) *node {
+	return &node{
 		origin:        origin,
 		halfDimension: halfDimension,
 	}
 }
 
-func (o *Node) GetOctantContainingPoint(point Vector3D) (oct int) {
+func (o *node) GetOctantContainingPoint(point Vector3D) (oct int) {
 	if point[x] >= o.origin[x] {
 		oct |= 4
 	}
@@ -50,19 +54,7 @@ func (o *Node) GetOctantContainingPoint(point Vector3D) (oct int) {
 	return
 }
 
-func (o *Node) IsRootNode() bool {
-	return o.root
-}
-
-func (o *Node) IsLeafNode() bool {
-	// This is correct, but overkill. See below.
-	// for i := 0; i < 8; i++ {
-	// 	if children[i] != nil {
-	// 		return false
-	// 	}
-	// }
-	// return true
-
+func (o *node) IsLeafNode() bool {
 	// We are a leaf if we have no children. Since we either have none, or
 	// all eight, it is sufficient to just check the first.
 	return o.children[0] == nil
@@ -75,15 +67,23 @@ func side(b bool) float64 {
 	return -0.5
 }
 
-func (o *Node) Size() int {
+func (o *Root) Size() int {
 	return o.size
 }
 
-func (o *Node) Insert(point Data) {
-	if o.IsRootNode() {
-		o.size++
+func (o *Root) Insert(points ...Data) {
+	for _, p := range points {
+		o.InsertRecursive(p)
 	}
+}
 
+func (o *Root) InsertRecursive(point Data) {
+	o.size++
+	}
+	o.tree.InsertRecursive(point)
+}
+
+func (o *node) InsertRecursive(point Data) {
 	// If this node doesn't have a data point yet assigned
 	// and it is a leaf, then we're done!
 	if o.IsLeafNode() {
@@ -97,7 +97,7 @@ func (o *Node) Insert(point Data) {
 			// this new data point
 
 			// Save this data point that was here for a later re-insert
-			oldPoint := o.data
+			oldData := o.data
 			o.data = nil
 
 			// Split the current node and create new empty trees for each
@@ -114,12 +114,12 @@ func (o *Node) Insert(point Data) {
 			// Re-insert the old point, and insert this new point
 			// (We wouldn't need to insert from the root, because we already
 			// know it's guaranteed to be in this section of the tree)
-			o.children[o.GetOctantContainingPoint(oldPoint.GetPosition())].Insert(oldPoint)
-			o.children[o.GetOctantContainingPoint(point.GetPosition())].Insert(point)
+			o.children[o.GetOctantContainingPoint(oldData.GetPosition())].InsertRecursive(oldData)
+			o.children[o.GetOctantContainingPoint(point.GetPosition())].InsertRecursive(point)
 		}
 	} else {
 		// We are at an interior node. Insert recursively into the
 		// appropriate child octant
-		o.children[o.GetOctantContainingPoint(point.GetPosition())].Insert(point)
+		o.children[o.GetOctantContainingPoint(point.GetPosition())].InsertRecursive(point)
 	}
 }
