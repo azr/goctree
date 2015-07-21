@@ -79,6 +79,8 @@ func (o *Root) Insert(points ...Data) {
 
 func (o *Root) InsertRecursive(point Data) {
 	o.size++
+	if !o.tree.contains(point) {
+		panic("Point out of tree: " + point.GetPosition().String() + " " + o.tree.origin.String() + " " + o.tree.halfDimension.String())
 	}
 	o.tree.InsertRecursive(point)
 }
@@ -122,4 +124,16 @@ func (o *node) InsertRecursive(point Data) {
 		// appropriate child octant
 		o.children[o.GetOctantContainingPoint(point.GetPosition())].InsertRecursive(point)
 	}
+}
+
+func (o *node) contains(point Data) bool {
+	p := point.GetPosition()
+	return !(p[x] > o.origin[x]+o.halfDimension[x] ||
+		p[x] < o.origin[x]-o.halfDimension[x] ||
+
+		p[y] > o.origin[y]+o.halfDimension[y] ||
+		p[y] < o.origin[y]-o.halfDimension[y] ||
+
+		p[z] > o.origin[z]+o.halfDimension[z] ||
+		p[z] < o.origin[z]-o.halfDimension[z])
 }
