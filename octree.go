@@ -13,6 +13,7 @@ type Tree interface {
 type root struct {
 	tree     *node
 	size     int
+	maxItem  int
 	insertFn func(...Data)
 	walkFn   func(bmin, bmax Vector3D, fn func(Data) WalkChoice) (seen int, choice WalkChoice)
 }
@@ -32,20 +33,22 @@ type node struct {
 		z:      - + - + - + - +
 	*/
 	children [8]*node
-	data     Data
+	datas    []Data
 }
 
-func NewRecursive(origin Vector3D, halfDimension Vector3D) Tree {
+func NewRecursive(origin Vector3D, halfDimension Vector3D, maxItem int) Tree {
 	r := &root{
-		tree: new(origin, halfDimension),
+		maxItem: maxItem,
+		tree:    new(origin, halfDimension, maxItem),
 	}
 	r.insertFn = r.InsertRecursive
 	r.walkFn = r.GetPointsInsideBoxRecursive
 	return r
 }
-func NewIterative(origin Vector3D, halfDimension Vector3D) Tree {
+func NewIterative(origin Vector3D, halfDimension Vector3D, maxItem int) Tree {
 	r := &root{
-		tree: new(origin, halfDimension),
+		maxItem: maxItem,
+		tree:    new(origin, halfDimension, maxItem),
 	}
 	r.insertFn = r.InsertIterative
 	r.walkFn = r.GetPointsInsideBoxIterative
@@ -59,14 +62,18 @@ func (r *root) Walk(bmin, bmax Vector3D, fn func(Data) WalkChoice) (seen int, ch
 	return r.walkFn(bmin, bmax, fn)
 }
 
-func new(origin Vector3D, halfDimension Vector3D) *node {
+func new(origin Vector3D, halfDimension Vector3D, items int) *node {
 	return &node{
 		origin:        origin,
 		halfDimension: halfDimension,
+		datas:         make([]Data, 0, items),
 	}
 }
 
 func (o *node) GetOctantContainingPoint(point Vector3D) (oct int) {
+	if !o.contains(point) {
+		panic("Point out of tree: " + point.String())
+	}
 	if point[x] >= o.origin[x] {
 		oct |= 4
 	}
@@ -77,6 +84,17 @@ func (o *node) GetOctantContainingPoint(point Vector3D) (oct int) {
 		oct |= 1
 	}
 	return
+}
+
+func (n *node) findChildrenContainingPoint(point Vector3D) *node {
+	return n.children[n.GetOctantContainingPoint(point)]
+}
+
+func (o *root) findLeafContainingPoint(node *node, point Vector3D) *node {
+	for !node.IsLeafNode() {
+		node = node.findChildrenContainingPoint(point)
+	}
+	return node
 }
 
 func (o *node) IsLeafNode() bool {
@@ -99,56 +117,47 @@ func (o *root) Size() int {
 func (o *root) InsertRecursive(points ...Data) {
 	for _, point := range points {
 		o.size++
-		if !o.tree.contains(point) {
+		if !o.tree.contains(point.GetPosition()) {
 			panic("Point out of tree: " + point.GetPosition().String() + " " + o.tree.origin.String() + " " + o.tree.halfDimension.String())
 		}
-		o.tree.InsertRecursive(point)
+		o.insertRecursive(o.tree, point)
 	}
 }
 
-func (o *node) InsertRecursive(point Data) {
-	// If this node doesn't have a data point yet assigned
-	// and it is a leaf, then we're done!
-	if o.IsLeafNode() {
-		if o.data == nil {
-			o.data = point
-			return
-		} else {
-			// We're at a leaf, but there's already something here
-			// We will split this node so that it has 8 child octants
-			// and then insert the old data that was here, along with
-			// this new data point
+func (o *root) insertRecursive(node *node, point Data) {
+	leaf := o.findLeafContainingPoint(node, point.GetPosition())
 
-			// Save this data point that was here for a later re-insert
-			oldData := o.data
-			o.data = nil
-
-			// Split the current node and create new empty trees for each
-			// child octant.
-			for i := 0; i < 8; i++ {
-				// Compute new bounding box for this child
-				newOrigin := o.origin
-				newOrigin[x] += o.halfDimension[x] * side(i&4 != 0)
-				newOrigin[y] += o.halfDimension[y] * side(i&2 != 0)
-				newOrigin[z] += o.halfDimension[z] * side(i&1 != 0)
-				o.children[i] = new(newOrigin, o.halfDimension.Imul(0.5))
-			}
-
-			// Re-insert the old point, and insert this new point
-			// (We wouldn't need to insert from the root, because we already
-			// know it's guaranteed to be in this section of the tree)
-			o.children[o.GetOctantContainingPoint(oldData.GetPosition())].InsertRecursive(oldData)
-			o.children[o.GetOctantContainingPoint(point.GetPosition())].InsertRecursive(point)
-		}
+	if len(leaf.datas) < o.maxItem {
+		leaf.datas = append(leaf.datas, point)
+		return
 	} else {
-		// We are at an interior node. Insert recursively into the
-		// appropriate child octant
-		o.children[o.GetOctantContainingPoint(point.GetPosition())].InsertRecursive(point)
+
+		oldDatas := leaf.datas
+		leaf.datas = leaf.datas[:0]
+
+		o.Split(leaf)
+
+		for _, oldData := range oldDatas {
+			o.insertRecursive(leaf.findChildrenContainingPoint(oldData.GetPosition()), oldData)
+		}
+		o.insertRecursive(leaf.findChildrenContainingPoint(point.GetPosition()), point)
 	}
 }
 
-func (o *node) contains(point Data) bool {
-	p := point.GetPosition()
+// Split a leaf node and create new empty trees for each
+// child octant.
+func (o *root) Split(leaf *node) {
+	for i := 0; i < 8; i++ {
+		// Compute new bounding box for this child
+		newOrigin := leaf.origin
+		newOrigin[x] += leaf.halfDimension[x] * side(i&4 != 0)
+		newOrigin[y] += leaf.halfDimension[y] * side(i&2 != 0)
+		newOrigin[z] += leaf.halfDimension[z] * side(i&1 != 0)
+		leaf.children[i] = new(newOrigin, leaf.halfDimension.Imul(0.5), o.maxItem)
+	}
+}
+
+func (o *node) contains(p Vector3D) bool {
 	return !(p[x] > o.origin[x]+o.halfDimension[x] ||
 		p[x] < o.origin[x]-o.halfDimension[x] ||
 
@@ -164,71 +173,23 @@ type insertPair struct {
 	points []Data
 }
 
-func (o *root) InsertIterative(points ...Data) {
+func (o *root) InsertIterative(datas ...Data) {
 	o.size++
 
-	pairs := []insertPair{
-		{
-			points: points,
-			node:   o.tree,
-		},
-	}
+	for len(datas) > 0 {
+		data := datas[len(datas)-1]
+		datas = datas[:len(datas)-1]
+		leaf := o.findLeafContainingPoint(o.tree, data.GetPosition())
+		if len(leaf.datas) < o.maxItem {
+			leaf.datas = append(leaf.datas, data)
+		} else {
 
-	for len(pairs) > 0 {
-		pair := pairs[len(pairs)-1]
-		pairs = pairs[:len(pairs)-1]
+			oldDatas := leaf.datas
+			leaf.datas = nil
 
-		node := pair.node
-		for len(pair.points) > 0 {
-			point := pair.points[len(pair.points)-1]
-			pair.points = pair.points[:len(pair.points)-1]
-
-			if node.IsLeafNode() {
-				if node.data == nil {
-					node.data = point
-					continue
-				} else {
-					// We're at a leaf, but there's already something here
-					// We will split this node so that it has 8 child octants
-					// and then insert the old data that was here, along with
-					// this new data point
-
-					// Save this data point that was here for a later re-insert
-					oldData := node.data
-					node.data = nil
-
-					// Split the current node and create new empty trees for each
-					// child octant.
-					for i := 0; i < 8; i++ {
-						// Compute new bounding box for this child
-						newOrigin := node.origin
-						newOrigin[x] += node.halfDimension[x] * side(i&4 != 0)
-						newOrigin[y] += node.halfDimension[y] * side(i&2 != 0)
-						newOrigin[z] += node.halfDimension[z] * side(i&1 != 0)
-						node.children[i] = new(newOrigin, node.halfDimension.Imul(0.5))
-					}
-
-					// Re-insert the old point, and insert this new point
-					// (We wouldn't need to insert from the root, because we already
-					// know it's guaranteed to be in this section of the tree)
-					pairs = append(pairs,
-						insertPair{
-							node:   node.children[node.GetOctantContainingPoint(oldData.GetPosition())],
-							points: []Data{oldData},
-						})
-					pairs = append(pairs,
-						insertPair{
-							node:   node.children[node.GetOctantContainingPoint(point.GetPosition())],
-							points: []Data{point},
-						})
-				}
-			} else {
-				pairs = append(pairs,
-					insertPair{
-						node:   node.children[node.GetOctantContainingPoint(point.GetPosition())],
-						points: []Data{point},
-					})
-			}
+			o.Split(leaf)
+			datas = append(datas, oldDatas...)
+			datas = append(datas, data)
 		}
 	}
 }

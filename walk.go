@@ -23,15 +23,20 @@ func (o *node) getPointsInsideBoxIterative(bmin, bmax Vector3D, fn func(Data) Wa
 		// If we're at a leaf node, just see if the current data point is inside
 		// the query bounding box
 		if o.IsLeafNode() {
-			if o.data != nil {
-				p := o.data.GetPosition()
-				if p[x] > bmax[x] || p[y] > bmax[y] || p[z] > bmax[z] {
-					continue
+			if len(o.datas) != 0 {
+				for _, data := range o.datas {
+					p := data.GetPosition()
+					if p[x] > bmax[x] || p[y] > bmax[y] || p[z] > bmax[z] {
+						continue
+					}
+					if p[x] < bmin[x] || p[y] < bmin[y] || p[z] < bmin[z] {
+						continue
+					}
+					choice = fn(data)
+					if choice == StopWalking {
+						break
+					}
 				}
-				if p[x] < bmin[x] || p[y] < bmin[y] || p[z] < bmin[z] {
-					continue
-				}
-				choice = fn(o.data)
 			}
 		} else {
 			// We're at an interior node of the tree. We will check to see if
@@ -67,19 +72,23 @@ func (o *root) GetPointsInsideBoxRecursive(bmin, bmax Vector3D, fn func(Data) Wa
 	return o.tree.getPointsInsideBoxRecursive(bmin, bmax, fn)
 }
 
-func (o *node) getPointsInsideBoxRecursive(bmin, bmax Vector3D, fn func(Data) WalkChoice) (int, WalkChoice) {
+func (o *node) getPointsInsideBoxRecursive(bmin, bmax Vector3D, fn func(Data) WalkChoice) (seen int, c WalkChoice) {
 	// If we're at a leaf node, just see if the current data point is inside
 	// the query bounding box
 	if o.IsLeafNode() {
-		if o.data != nil {
-			p := o.data.GetPosition()
-			if p[x] > bmax[x] || p[y] > bmax[y] || p[z] > bmax[z] {
-				return 1, ContinueWalking
+		if len(o.datas) != 0 {
+			for _, data := range o.datas {
+				p := data.GetPosition()
+				if p[x] > bmax[x] || p[y] > bmax[y] || p[z] > bmax[z] {
+					continue
+				}
+				if p[x] < bmin[x] || p[y] < bmin[y] || p[z] < bmin[z] {
+					continue
+				}
+				if fn(data) == StopWalking {
+					return 1, StopWalking
+				}
 			}
-			if p[x] < bmin[x] || p[y] < bmin[y] || p[z] < bmin[z] {
-				return 1, ContinueWalking
-			}
-			return 1, fn(o.data)
 		}
 		return 1, ContinueWalking
 	} else {
